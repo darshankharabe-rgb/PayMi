@@ -11,6 +11,7 @@ from app.database import get_db
 from app.models import User, Account
 from app.schemas import AccountOut
 
+
 import uuid
 import json
 import redis
@@ -19,6 +20,16 @@ from app.models import LedgerEntry
 from app.schemas import TransferCreate
 from dotenv import load_dotenv
 
+from fastapi.middleware.cors import CORSMiddleware
+
+# To allow Reacts default Vite port (5173) to talk to FastAPI
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["http://localhost:5173"], 
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 load_dotenv()  # Load environment variables from .env file
 
 
