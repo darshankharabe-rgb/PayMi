@@ -58,6 +58,9 @@ def get_current_user(credentials: HTTPAuthorizationCredentials = Depends(securit
         raise HTTPException(status_code=401, detail="Invalid or expired token")
     
     user_id = payload.get("sub")
+    if user_id is None:
+        raise HTTPException(status_code=401, detail="Token payload invalid")
+    
     user = db.query(User).filter(User.id == int(user_id)).first()
     if not user:
         raise HTTPException(status_code=401, detail="User not found")
@@ -65,5 +68,5 @@ def get_current_user(credentials: HTTPAuthorizationCredentials = Depends(securit
     return user
 
 @app.get("/me", response_model=UserOut)
-def read_current_user(current_user: dict = Depends(get_current_user)):
+def read_current_user(current_user: User = Depends(get_current_user)):
     return current_user
