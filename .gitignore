@@ -3,6 +3,7 @@ __pycache__/
 *.py[cod]
 *.so
 *.pyc
+
 # Virtual Environment
 .venv/
 venv/
@@ -28,6 +29,3 @@ htmlcov/
 # OS
 .DS_Store
 Thumbs.db
-
-# Alembic
-alembic/versions/*.pyc
