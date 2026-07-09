@@ -22,7 +22,6 @@ python-jose[cryptography]==3.3.0
 markdown-it-py==4.2.0
 MarkupSafe==3.0.3
 mdurl==0.1.2
-psycopg2-binary==2.9.12
 pydantic==2.13.4
 pydantic-extra-types==2.11.1
 pydantic-settings==2.5.2
@@ -47,3 +46,7 @@ uvicorn==0.32.0
 uvloop==0.22.1
 watchfiles==1.2.0
 websockets==16.0
+psycopg==3.3.4
+psycopg-binary==3.3.4
+python-dotenv==1.0.1
+SQLAlchemy==2.0.35
