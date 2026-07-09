@@ -21,3 +21,23 @@ class Account(Base):
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 
     owner: Mapped["User"] = relationship("User")
+
+# app/models.py
+
+class LedgerEntry(Base):
+    __tablename__ = "ledger_entries"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, index=True)
+    account_id: Mapped[int] = mapped_column(Integer, ForeignKey("accounts.id"), nullable=False)
+
+    # Store amounts as cents to avoid floating-point rounding errors
+    amount: Mapped[int] = mapped_column(Integer, nullable=False) 
+  
+    # Will be credit  or debit
+    entry_type: Mapped[str] = mapped_column(String, nullable=False) 
+    # A unique UUID to link the debit and credit rows of a single transfer together
+   
+    transaction_id: Mapped[str] = mapped_column(String, index=True, nullable=False) 
+  
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    account: Mapped["Account"] = relationship("Account")
