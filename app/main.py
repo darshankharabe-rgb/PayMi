@@ -1,4 +1,5 @@
-from fastapi import FastAPI, HTTPException, Depends
+import os
+from fastapi import FastAPI, HTTPException, Depends, Header
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 
 from sqlalchemy.orm import Session
@@ -11,12 +12,24 @@ from app.models import User, Account
 from app.schemas import AccountOut
 
 import uuid
+import json
+import redis
 from sqlalchemy import func
 from app.models import LedgerEntry
 from app.schemas import TransferCreate
+from dotenv import load_dotenv
+
+load_dotenv()  # Load environment variables from .env file
 
 
 app = FastAPI(title="PayMi Backend Service", version="1.0.0")
+
+REDIS_URL = os.getenv("REDIS_URL")
+if not REDIS_URL:
+    raise ValueError("REDIS_URL is missing from the .env file")
+
+redis_client = redis.from_url(REDIS_URL, decode_responses=True)  # decode_responses=True to get strings instead of bytes
+
 
 @app.get("/")
 def root():
@@ -126,43 +139,41 @@ def read_balance(
 @app.post("/transfer")
 def transfer_funds(
     transfer: TransferCreate,
+    idempotency_key: str = Header(..., description="Unique key to prevent duplicate transfers"),
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):
 
-    # 1. Verify sender owns the from_account
-    sender_account = db.query(Account).filter(Account.id == transfer.from_account_id).first()
-    if not sender_account or sender_account.owner_id != current_user.id:
-        raise HTTPException(status_code=403, detail="Not authorized to transfer from this account")
+    # 1. CHECK REDIS FIRST
+    # If the key exists, return the exact response we saved previously
+    cached_response = redis_client.get(idempotency_key)
+    if cached_response:
+        return json.loads(cached_response)
 
-    # 2. Check for sufficient funds
+    # 2. DO THE DATABASE WORK
+    # (This is your existing concurrency-safe transfer code)
+    sender_account = db.query(Account).filter(Account.id == transfer.from_account_id).with_for_update().first()
+    if not sender_account or sender_account.owner_id != current_user.id:
+        raise HTTPException(status_code=403, detail="Not authorized")
+
     current_balance = get_account_balance(db, transfer.from_account_id)
     if current_balance < transfer.amount:
         raise HTTPException(status_code=400, detail="Insufficient funds")
 
-    # 3. Create the atomic transfer
     tx_id = str(uuid.uuid4())
     
-    debit = LedgerEntry(
-        account_id=transfer.from_account_id,
-        amount=transfer.amount,
-        entry_type="debit",
-        transaction_id=tx_id
+    db.add(LedgerEntry(account_id=transfer.from_account_id, amount=transfer.amount, entry_type="debit", transaction_id=tx_id))
+    db.add(LedgerEntry(account_id=transfer.to_account_id, amount=transfer.amount, entry_type="credit", transaction_id=tx_id))
+    db.commit() 
+    
+    # 3. SAVE THE RESULT TO REDIS
+    response_data = {"message": "Transfer successful", "transaction_id": tx_id}
+    
+    # Save it for 24 hours (86400 seconds)
+    redis_client.setex(
+        name=idempotency_key,
+        time=86400,
+        value=json.dumps(response_data)
     )
-    
-    credit = LedgerEntry(
-        account_id=transfer.to_account_id,
-        amount=transfer.amount,
-        entry_type="credit",
-        transaction_id=tx_id
-    )
-    
-    # Stage both writes
-    db.add(debit)
-    db.add(credit)
-    
-    # ATOMICITY: Commit both rows to the database simultaneously.
-    # If the server crashes here, the database rolls back both, saving the money.
-    db.commit()
-    
-    return {"message": "Transfer successful", "transaction_id": tx_id}
+
+    return response_data
