@@ -1,8 +1,9 @@
+import os
 import bcrypt
 from datetime import datetime, timedelta, timezone
 from jose import jwt, JWTError
 
-SECRET_KEY = "Secret-KEY"  # Its just a placeholder actual key in env
+SECRET_KEY = os.getenv(Secret_Key)  # Its just a placeholder actual key in env
 ALGORITHM = "HS256"
 ACCESS_TOKEN_EXPIRE_MINUTES = 30
 
