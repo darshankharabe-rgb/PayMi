@@ -1,3 +1,5 @@
+# app/models.py
+
 from sqlalchemy import Integer, String, ForeignKey, DateTime, func
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 from datetime import datetime
@@ -22,7 +24,6 @@ class Account(Base):
 
     owner: Mapped["User"] = relationship("User")
 
-# app/models.py
 
 class LedgerEntry(Base):
     __tablename__ = "ledger_entries"
